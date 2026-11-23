@@ -11,20 +11,21 @@ npm install
 npm run dev
 ```
 
-Abra <http://localhost:3000>.
+Abra <http://localhost:3000>. Sem configuração do Neon, a aplicação mostra a página de configuração inicial.
 
-## Banco Supabase
+## Neon
 
-A estrutura inicial está em `supabase/migrations/202611230001_initial_question_bank.sql`. Ela cria categorias, posições fixas de questão e alternativas, com acesso restrito ao usuário autenticado por políticas RLS.
-
-Depois de criar o projeto Supabase, configure as variáveis de ambiente em `.env.local` (não versionar esse arquivo):
+Crie um projeto Neon com Neon Auth habilitado. Copie a connection string do PostgreSQL e a URL do Neon Auth para `.env.local`, que não deve ser versionado:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+DATABASE_URL=
+NEON_AUTH_BASE_URL=
+NEON_AUTH_COOKIE_SECRET=
 ```
 
-A primeira etapa funcional será conectar o login do professor e o cadastro de categorias. A tela inicial atual é apenas a estrutura visual do produto.
+Gere `NEON_AUTH_COOKIE_SECRET` com pelo menos 32 caracteres aleatórios (por exemplo, `openssl rand -base64 32`). A connection string e o segredo de cookies são privados e só podem ser usados no servidor.
+
+Aplique `neon/migrations/202611230001_initial_question_bank.sql` no SQL Editor do Neon. O banco é acessado exclusivamente pelo servidor Next.js; nenhum cliente do navegador recebe `DATABASE_URL`.
 
 ## Etapas de desenvolvimento
 

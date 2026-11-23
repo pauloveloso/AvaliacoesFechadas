@@ -22,8 +22,8 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 - **TypeScript** em todo o produto.
 - **Next.js (React)** para a aplicação web: cadastro, edição, geração, consulta e correção. Começar como aplicação única evita separar serviços antes de haver necessidade.
 - **PostgreSQL** como banco principal, com migrações versionadas.
-- **Supabase Auth e cliente `@supabase/supabase-js`** para autenticação e acesso ao PostgreSQL com Row Level Security. As mudanças do banco serão versionadas em migrações SQL no Supabase CLI; não usaremos uma segunda camada ORM no MVP.
-- **Supabase Storage** para imagens anexadas e arquivos do sistema, caso necessário. As fotos de correção podem ser processadas no próprio navegador e descartadas sem upload.
+- **Neon Auth** para login do único professor e **`@neondatabase/serverless`** para consultas PostgreSQL do servidor Next.js. A connection string fica somente no servidor; ações e consultas verificam a sessão antes de acessar dados. As mudanças do banco ficam em migrações SQL versionadas.
+- As fotos de correção são processadas no navegador e descartadas sem upload. Se questões precisarem de imagens, podemos usar o armazenamento de objetos do Neon ou manter a mídia embutida nos blocos de conteúdo.
 - **OpenCV.js** para leitura óptica (OMR) no navegador do celular; uma biblioteca JavaScript de QR para localizar a prova. O servidor recebe as respostas reconhecidas e os dados da correção, não precisa executar processamento de imagem.
 
 ### PDFs e QR
@@ -34,8 +34,7 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 
 ### Implantação inicial
 
-- **Vercel Hobby** para publicar a aplicação Next.js e **Supabase Free** para PostgreSQL, autenticação e armazenamento. O uso pressupõe que se enquadre nos termos de projeto pessoal/não comercial do plano gratuito da Vercel.
-- O plano gratuito do Supabase pausa projetos após cerca de uma semana de baixa atividade; como o uso é esporádico, o professor poderá reativá-lo ao precisar. Não há backup automático no plano gratuito, conforme a necessidade informada.
+- **Vercel Hobby** para publicar a aplicação Next.js e **Neon Free** para PostgreSQL e Neon Auth. O uso pressupõe que se enquadre nos termos de projeto pessoal/não comercial da Vercel. O banco pode escalar a zero após inatividade; o primeiro acesso pode aguardar a reativação.
 
 ## 4. Estrutura funcional
 
@@ -50,7 +49,7 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 
 ## 5. Modelo de dados inicial
 
-- `User`: usuário e papel (administrador/professor, se houver mais de um perfil).
+- `User`: usuário único mantido pelo Neon Auth.
 - `Category`: categoria, configurações e status.
 - `QuestionSlot`: categoria, número/posição, tipo e regras de seleção.
 - `Question`: conteúdo-base, dificuldade, tema, versão e status.
@@ -98,24 +97,25 @@ A leitura óptica requer uma grade padronizada no próprio caderno, marcas de re
 
 ```text
 web/src/
-  app/                 páginas e rotas da aplicação
-  components/          componentes de interface e editor
+  app/                   páginas, ações e rotas da aplicação
+    api/auth/            proxy de autenticação Neon Auth
+    auth/                páginas de login e saída
+  components/            componentes de interface e editor
   features/
-    categories/        cadastro e estrutura das categorias
-    questions/         questões, alternativas e classificação
-    packages/          regras e geração de pacotes
-    exams/             provas, QR e exportação PDF
-    correction/        respostas, correção e relatórios
-  omr/                 leitura óptica executada no navegador com OpenCV.js
-  server/
-    auth/              sessão e autorização
-    db/                clientes Supabase e consultas
-supabase/
-  migrations/          migrações SQL do banco com políticas RLS
-    pdf/               modelos HTML/CSS de impressão
-    qr/                geração e validação dos tokens
-  shared/              tipos, validações e utilitários
+    categories/          cadastro e estrutura das categorias
+    questions/           questões, alternativas e classificação
+    packages/            regras e geração de pacotes
+    exams/                provas, QR e exportação PDF
+    correction/           respostas, correção e relatórios
+  lib/
+    auth/server.ts        Neon Auth e checagem de sessão
+    db.ts                 consultas PostgreSQL somente no servidor
+  proxy.ts                proteção inicial das rotas
+neon/
+  migrations/            migrações SQL versionadas
 ```
+
+As rotas e ações do servidor devem checar a sessão antes de acessar o banco. A `DATABASE_URL` nunca deve ser exposta em componentes de cliente.
 
 ## 9. Cuidados de implementação
 
@@ -129,4 +129,4 @@ supabase/
 
 ## 10. Próxima etapa
 
-A primeira etapa de desenvolvimento é autenticação de um único professor e cadastro de categorias/posições, usando as políticas RLS da migração inicial. Em seguida virão o editor de questões e alternativas, geração de pacotes com snapshots e valores por questão, PDF com QR e grade de respostas e, por fim, leitura óptica pelo navegador do celular. O layout da grade será calibrado com fotos reais antes de confiar a correção automaticamente.
+O esqueleto inicial agora tem Neon Auth, acesso ao PostgreSQL exclusivamente pelo servidor e a migração inicial de categorias/posições/questões. O próximo passo funcional é configurar o projeto Neon, aplicar a migração e implementar o cadastro de categorias. Depois virão o editor de questões e alternativas, geração de pacotes com snapshots e valores por questão, PDF com QR e grade de respostas e, por fim, leitura óptica pelo navegador do celular. O layout da grade será calibrado com fotos reais antes de confiar a correção automaticamente.

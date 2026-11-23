@@ -1,3 +1,8 @@
+import { requireUser } from "@/lib/auth/server";
+import { signOut } from "@/app/auth/sign-out/actions";
+
+export const dynamic = "force-dynamic";
+
 const steps = [
   {
     number: "01",
@@ -26,7 +31,9 @@ function Mark({ children }: { children: React.ReactNode }) {
   return <span className="mark">{children}</span>;
 }
 
-export default function Home() {
+export default async function Home() {
+  const user = await requireUser();
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -49,10 +56,14 @@ export default function Home() {
         <div className="sidebar-bottom">
           <div className="profile-avatar">P</div>
           <div className="profile-copy">
-            <strong>Professor</strong>
-            <span>Área de trabalho pessoal</span>
+            <strong>{user.name || "Professor"}</strong>
+            <span>{user.email}</span>
           </div>
-          <span className="profile-menu" aria-hidden="true">···</span>
+          <form action={signOut}>
+            <button className="sign-out-button" type="submit" aria-label="Encerrar sessão">
+              <span aria-hidden="true">↪</span><span className="sign-out-label">Sair</span>
+            </button>
+          </form>
         </div>
       </aside>
 
