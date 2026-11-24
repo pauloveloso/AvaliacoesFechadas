@@ -179,6 +179,9 @@ h1 em { color: var(--green); font-style: normal; }
 .sign-in-form button:hover { background: var(--green-dark); }
 .sign-in-form button:disabled { opacity: .65; cursor: wait; }
 .form-error { color: #a23c3c; font-size: 11px; line-height: 1.5; }
+.auth-switch { margin-top: 18px; color: #718078; font-size: 11px; text-align: center; }
+.auth-switch a { color: #4e7b5a; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.auth-link-button { display: inline-flex; justify-content: center; margin-top: 22px; padding: 13px 16px; border-radius: 8px; color: white; background: var(--green); font-size: 12px; font-weight: 700; text-decoration: none; }
 .setup-card { width: min(100%, 520px); }
 .setup-list { display: grid; gap: 12px; padding-left: 20px; margin: 22px 0 0; color: #51645a; font-size: 11px; line-height: 1.6; }
 .setup-list li::marker { color: var(--green); font-weight: 700; }

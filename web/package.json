@@ -12,14 +12,18 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@neondatabase/auth": "^0.6.0-beta",
-    "@neondatabase/serverless": "^1.2.1",
+    "@neon/auth": "^0.8.2",
+    "@neon/config": "^1.14.6",
+    "@neon/env": "^2.1.9",
+    "@vercel/functions": "^3.11.3",
     "next": "16.4.6",
+    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

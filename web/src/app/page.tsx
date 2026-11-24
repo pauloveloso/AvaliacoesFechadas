@@ -1,7 +1,8 @@
+import { Suspense } from "react";
+import { connection } from "next/server";
+
 import { requireUser } from "@/lib/auth/server";
 import { signOut } from "@/app/auth/sign-out/actions";
-
-export const dynamic = "force-dynamic";
 
 const steps = [
   {
@@ -31,7 +32,16 @@ function Mark({ children }: { children: React.ReactNode }) {
   return <span className="mark">{children}</span>;
 }
 
-export default async function Home() {
+export default function Home() {
+  return (
+    <Suspense fallback={<main className="app-shell">Carregando seu espaço…</main>}>
+      <Dashboard />
+    </Suspense>
+  );
+}
+
+async function Dashboard() {
+  await connection();
   const user = await requireUser();
 
   return (

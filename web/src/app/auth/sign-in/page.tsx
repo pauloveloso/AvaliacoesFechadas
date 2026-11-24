@@ -14,6 +14,9 @@ export default function SignInPage() {
         <h1>Acesse suas avaliações</h1>
         <p className="auth-description">Entre com a conta criada no Neon Auth.</p>
         <SignInForm />
+        <p className="auth-switch">
+          Primeiro acesso? <Link href="/auth/sign-up">Criar conta</Link>
+        </p>
       </section>
     </main>
   );

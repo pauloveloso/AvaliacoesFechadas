@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation";
 
-import { getAuth } from "@/lib/auth/server";
+import { auth } from "@/lib/auth/server";
 
 export async function signOut() {
-  await getAuth().signOut();
+  await auth.signOut();
   redirect("/auth/sign-in");
 }

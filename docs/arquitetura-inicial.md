@@ -22,7 +22,7 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 - **TypeScript** em todo o produto.
 - **Next.js (React)** para a aplicação web: cadastro, edição, geração, consulta e correção. Começar como aplicação única evita separar serviços antes de haver necessidade.
 - **PostgreSQL** como banco principal, com migrações versionadas.
-- **Neon Auth** para login do único professor e **`@neondatabase/serverless`** para consultas PostgreSQL do servidor Next.js. A connection string fica somente no servidor; ações e consultas verificam a sessão antes de acessar dados. As mudanças do banco ficam em migrações SQL versionadas.
+- **Neon Auth** para login do professor e **`pg` com `@vercel/functions`** para consultas PostgreSQL no Vercel Fluid. A connection string fica somente no servidor; ações e consultas verificam a sessão antes de acessar dados. As mudanças do banco ficam em migrações SQL versionadas.
 - As fotos de correção são processadas no navegador e descartadas sem upload. Se questões precisarem de imagens, podemos usar o armazenamento de objetos do Neon ou manter a mídia embutida nos blocos de conteúdo.
 - **OpenCV.js** para leitura óptica (OMR) no navegador do celular; uma biblioteca JavaScript de QR para localizar a prova. O servidor recebe as respostas reconhecidas e os dados da correção, não precisa executar processamento de imagem.
 
@@ -129,4 +129,4 @@ As rotas e ações do servidor devem checar a sessão antes de acessar o banco. 
 
 ## 10. Próxima etapa
 
-O esqueleto inicial agora tem Neon Auth, acesso ao PostgreSQL exclusivamente pelo servidor e a migração inicial de categorias/posições/questões. O próximo passo funcional é configurar o projeto Neon, aplicar a migração e implementar o cadastro de categorias. Depois virão o editor de questões e alternativas, geração de pacotes com snapshots e valores por questão, PDF com QR e grade de respostas e, por fim, leitura óptica pelo navegador do celular. O layout da grade será calibrado com fotos reais antes de confiar a correção automaticamente.
+O esqueleto inicial já está ligado ao branch `production` do Neon, com Neon Auth, acesso ao PostgreSQL somente pelo servidor e a migração inicial de categorias/posições/questões aplicada. O próximo passo funcional é implementar o cadastro de categorias e posições. Depois virão o editor de questões e alternativas, geração de pacotes com snapshots e valores por questão, PDF com QR e grade de respostas e, por fim, leitura óptica pelo navegador do celular. O layout da grade será calibrado com fotos reais antes de confiar a correção automaticamente.

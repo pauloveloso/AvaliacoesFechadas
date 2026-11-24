@@ -11,21 +11,22 @@ npm install
 npm run dev
 ```
 
-Abra <http://localhost:3000>. Sem configuração do Neon, a aplicação mostra a página de configuração inicial.
+Abra <http://localhost:3000>. O app exige as variáveis do Neon em `.env.local`.
 
 ## Neon
 
-Crie um projeto Neon com Neon Auth habilitado. Copie a connection string do PostgreSQL e a URL do Neon Auth para `.env.local`, que não deve ser versionado:
+O projeto está vinculado ao branch `production` do Neon por `neon.ts` e `.neon`. Para atualizar as variáveis locais e aplicar a configuração dos serviços, use `npx neon@latest deploy`. O app usa Neon Auth para login e `pg` com Vercel Fluid para consultas ao PostgreSQL.
+
+O Neon CLI preenche as variáveis de banco e Auth em `.env.local`. Defina também o e-mail autorizado para criar conta e acessar o sistema:
 
 ```env
-DATABASE_URL=
-NEON_AUTH_BASE_URL=
 NEON_AUTH_COOKIE_SECRET=
+APP_OWNER_EMAIL=voce@exemplo.com
 ```
 
-Gere `NEON_AUTH_COOKIE_SECRET` com pelo menos 32 caracteres aleatórios (por exemplo, `openssl rand -base64 32`). A connection string e o segredo de cookies são privados e só podem ser usados no servidor.
+Gere `NEON_AUTH_COOKIE_SECRET` com pelo menos 32 caracteres aleatórios (por exemplo, `openssl rand -base64 32`). A connection string e o segredo de cookies são privados e só podem ser usados no servidor. O cadastro é limitado a `APP_OWNER_EMAIL`.
 
-Aplique `neon/migrations/202611230001_initial_question_bank.sql` no SQL Editor do Neon. O banco é acessado exclusivamente pelo servidor Next.js; nenhum cliente do navegador recebe `DATABASE_URL`.
+As migrações usam a conexão direta `DATABASE_URL_UNPOOLED`; o tráfego do app usa `DATABASE_URL`. O banco é acessado exclusivamente pelo servidor Next.js; nenhum cliente do navegador recebe a connection string.
 
 ## Etapas de desenvolvimento
 

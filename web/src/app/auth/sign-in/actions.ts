@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { getAuth } from "@/lib/auth/server";
+import { auth } from "@/lib/auth/server";
 
 export type SignInState = { error: string } | null;
 
@@ -17,7 +17,7 @@ export async function signIn(
     return { error: "Informe seu e-mail e sua senha." };
   }
 
-  const { error } = await getAuth().signIn.email({ email, password });
+  const { error } = await auth.signIn.email({ email, password });
 
   if (error) {
     return { error: "Não foi possível entrar. Confira os dados e tente novamente." };
