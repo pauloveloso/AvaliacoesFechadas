@@ -15,14 +15,17 @@
     "@neon/auth": "^0.8.2",
     "@neon/config": "^1.14.6",
     "@neon/env": "^2.1.9",
+    "@vercel/blob": "^2.9.0",
     "@vercel/functions": "^3.11.3",
     "next": "16.4.6",
+    "pdfkit": "^0.21.0",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.7",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",

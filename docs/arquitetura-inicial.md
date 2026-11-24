@@ -8,9 +8,9 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 
 ## 2. Decisões de produto
 
-- Uma **categoria** organiza os bancos de questões por posição (até 10). Ao gerar uma avaliação, o professor escolhe quantas posições usar; cada posição mantém formato e quantidade de alternativas fixos.
-- Cada posição (Questão 1, Questão 2 etc.) recebe um banco próprio de questões candidatas. Em uma categoria, cada posição configurada mantém o mesmo formato e o mesmo número de alternativas. O professor define quantas posições/questões a avaliação terá (no máximo 10) e informa o valor em pontos de cada questão; a soma define o valor total da prova e a nota do aluno.
-- Questões candidatas associadas à mesma posição compartilham formato e número de alternativas; tema/conteúdo e dificuldade podem ser usados para organizar e equilibrar o banco.
+- A organização do banco segue **período letivo → disciplina → conteúdo → tipo de questão → questões**. O período lista as disciplinas ofertadas naquele semestre; os registros anteriores permanecem disponíveis.
+- Cada tipo de questão define o formato e o número de alternativas. Ao montar uma avaliação, o professor escolhe disciplina e quantidade de questões (até 10) e configura, em cada posição, um conteúdo, um tipo de questão e seu valor em pontos.
+- As versões de um pacote mantêm a mesma estrutura de posições, conteúdos, tipos e valores. Cada posição pode receber uma questão diferente do banco daquele tipo; a mesma questão pode ser reutilizada em provas distintas.
 - Um **pacote** é uma geração fechada e versionada, como 30 provas daquela categoria. Cada prova contém uma seleção e ordem imutáveis.
 - Cada prova recebe identificador único e QR code. O QR identifica a versão da prova e permite abrir o gabarito após autorização; não deve carregar as respostas legíveis no próprio código.
 - O gabarito fica guardado no servidor e vinculado exatamente à versão gerada, mesmo que questões sejam editadas depois.
@@ -23,7 +23,7 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 - **Next.js (React)** para a aplicação web: cadastro, edição, geração, consulta e correção. Começar como aplicação única evita separar serviços antes de haver necessidade.
 - **PostgreSQL** como banco principal, com migrações versionadas.
 - **Neon Auth** para login do professor e **`pg` com `@vercel/functions`** para consultas PostgreSQL no Vercel Fluid. A connection string fica somente no servidor; ações e consultas verificam a sessão antes de acessar dados. As mudanças do banco ficam em migrações SQL versionadas.
-- As fotos de correção são processadas no navegador e descartadas sem upload. Se questões precisarem de imagens, podemos usar o armazenamento de objetos do Neon ou manter a mídia embutida nos blocos de conteúdo.
+- As fotos de correção são processadas no navegador e descartadas sem upload. Imagens do banco de questões ficam em um Blob privado da Vercel, pois o projeto Neon está na região `sa-east-1`, fora das regiões atualmente atendidas pelo Neon Object Storage. O Postgres guarda apenas os metadados e a referência privada.
 - **OpenCV.js** para leitura óptica (OMR) no navegador do celular; uma biblioteca JavaScript de QR para localizar a prova. O servidor recebe as respostas reconhecidas e os dados da correção, não precisa executar processamento de imagem.
 
 ### PDFs e QR
@@ -38,9 +38,9 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 
 ## 4. Estrutura funcional
 
-1. **Categorias** — nome, instruções, cabeçalho/rodapé, duração opcional, configuração de impressão e sequência de posições.
-2. **Questões** — enunciado rico (texto, código, imagens), alternativas ordenadas, resposta correta, explicação opcional e metadados de tema, dificuldade e tags.
-3. **Posições da prova** — por exemplo, posição 1 aceita questões do conjunto A e posição 2 aceita questões do conjunto B. A categoria define as regras de seleção para cada posição.
+1. **Cadastros** — períodos letivos, disciplinas ofertadas por período, conteúdos por disciplina e tipos de questão por conteúdo. Tipos definem formato e número de alternativas.
+2. **Questões** — enunciado rico (texto, código, imagens), alternativas ordenadas, resposta correta, explicação opcional, dificuldade e vínculo com um tipo de questão.
+3. **Estrutura da prova** — por exemplo, posição 1 usa Condicional SE / Prever a saída; posição 2 usa Vetores / Corrigir trecho de código. O professor define a quantidade de questões e o valor em pontos de cada posição.
 4. **Geração de pacote** — quantidade de provas, verificação de banco suficiente, seleção aleatória com restrições e revisão de prévia. A geração salva um snapshot imutável de enunciados, alternativas e gabarito. A mesma questão pode aparecer em várias provas do pacote; não há restrição de repetição entre provas.
 5. **PDF** — prova individual ou arquivo combinado do pacote; QR individual por prova; campo de nome/turma e grade compacta de respostas no próprio caderno, logo após o cabeçalho. Como há no máximo 10 questões, a grade pode indicar as alternativas de cada questão sem uma folha separada. Incluir marcas de referência para alinhar a foto.
 6. **Correção automática** — fotografar a região do cabeçalho e da grade pelo celular; processar a imagem no navegador com OpenCV.js, detectar e ler o QR, identificar as bolhas marcadas e comparar as respostas com o snapshot do gabarito; somar os valores das questões corretas e mostrar corretas, incorretas, não respondidas/ambíguas e nota.
@@ -50,12 +50,15 @@ O PDF enviado é uma referência visual de uma prova real: papel A4, cabeçalho 
 ## 5. Modelo de dados inicial
 
 - `User`: usuário único mantido pelo Neon Auth.
-- `Category`: categoria, configurações e status.
-- `QuestionSlot`: categoria, número/posição, tipo e regras de seleção.
-- `Question`: conteúdo-base, dificuldade, tema, versão e status.
+- `AcademicTerm`: período letivo, como `2026.1`.
+- `Discipline`: disciplina reutilizável entre semestres.
+- `TermDiscipline`: disciplinas ofertadas em cada período, preservando o histórico.
+- `Content`: conteúdo pertencente à disciplina, como `Condicional SE`.
+- `QuestionType`: tipo pertencente ao conteúdo, com formato e quantidade de alternativas.
+- `Question`: conteúdo-base, dificuldade, versão e vínculo com um tipo de questão.
 - `Alternative`: questão, texto/figura e posição.
-- `QuestionSlotItem`: associação entre uma posição e as questões candidatas.
-- `Package`: categoria, quantidade, data, parâmetros e estado de geração.
+- `Package`: período, disciplina, quantidade, data, parâmetros e estado de geração.
+- `PackageSlot`: posição, conteúdo, tipo de questão e valor em pontos escolhido para a prova.
 - `ExamVersion`: pacote, código público opaco, QR, número da prova e versão do layout.
 - `ExamQuestion`: questão congelada na prova, posição, alternativas na ordem impressa, resposta correta e valor em pontos congelados.
 - `Student` (opcional no MVP): identificação do aluno.
@@ -67,11 +70,11 @@ O snapshot em `ExamQuestion` é essencial: alterar o cadastro de uma questão n�
 
 ### Preparar questões
 
-Cadastrar categoria → configurar posições → cadastrar questões e alternativas → indicar a resposta correta → classificar tema/dificuldade → associar cada questão às posições permitidas.
+Cadastrar período → vincular disciplinas ofertadas → cadastrar conteúdos e tipos de questão → cadastrar questões e alternativas → indicar a resposta correta e classificar dificuldade.
 
 ### Gerar e imprimir
 
-Solicitar, por exemplo, 30 provas → validar quantidade e critérios de equivalência → selecionar questões por posição (com repetição livre entre provas) → embaralhar alternativas se configurado → congelar snapshots → gerar prévia → exportar PDF.
+Escolher período e disciplina → informar quantidade de questões e valor de cada uma → selecionar conteúdo e tipo em cada posição → solicitar, por exemplo, 30 provas → validar o banco disponível e os critérios de equivalência → selecionar questões correspondentes → embaralhar alternativas se configurado → congelar snapshots → gerar prévia → exportar PDF.
 
 A equivalência de dificuldade não pode ser garantida apenas por sorteio. O sistema deve permitir regras explícitas (por exemplo, mesma dificuldade e tema por posição) e mostrar avisos quando o banco cadastrado não tiver opções suficientes.
 
@@ -82,7 +85,8 @@ Fotografar com o celular o cabeçalho e a grade de respostas impressa na própri
 ## 7. Escopo recomendado para o MVP
 
 - Um usuário administrador/professor.
-- Categorias e posições fixas.
+- Períodos letivos, disciplinas, conteúdos e tipos de questão.
+- Uma estrutura por pacote com até 10 posições definidas pelo professor.
 - Questões de múltipla escolha com uma resposta correta.
 - Texto e blocos de código no enunciado; imagens podem entrar na primeira versão se forem necessárias para as questões reais.
 - Geração aleatória controlada de provas e PDF combinado com QR individual.
@@ -102,7 +106,7 @@ web/src/
     auth/                páginas de login e saída
   components/            componentes de interface e editor
   features/
-    categories/          cadastro e estrutura das categorias
+    catalog/             períodos, disciplinas, conteúdos e tipos de questão
     questions/           questões, alternativas e classificação
     packages/            regras e geração de pacotes
     exams/                provas, QR e exportação PDF
@@ -127,6 +131,6 @@ As rotas e ações do servidor devem checar a sessão antes de acessar o banco. 
 - Criar pré-visualização antes de exportar o pacote e validar paginação, quebras de código, imagens e legibilidade em A4.
 - Evitar usar o PDF original como fundo fixo: os conteúdos variam e precisam fluir sem sobreposição; usar o arquivo como referência de estilo.
 
-## 10. Próxima etapa
+## 10. Estado atual e próxima etapa
 
-O esqueleto inicial já está ligado ao branch `production` do Neon, com Neon Auth, acesso ao PostgreSQL somente pelo servidor e a migração inicial de categorias/posições/questões aplicada. O próximo passo funcional é implementar o cadastro de categorias e posições. Depois virão o editor de questões e alternativas, geração de pacotes com snapshots e valores por questão, PDF com QR e grade de respostas e, por fim, leitura óptica pelo navegador do celular. O layout da grade será calibrado com fotos reais antes de confiar a correção automaticamente.
+O sistema está ligado ao branch `production` do Neon, com Neon Auth e acesso ao PostgreSQL somente pelo servidor. Os cadastros seguem a hierarquia de período, disciplina, conteúdo e tipo de questão. O banco permite criar questões fechadas, alternativas, gabaritos, dificuldade e até três imagens JPEG, PNG ou WebP por questão no Blob privado da Vercel. A montagem de pacotes grava versões, valores por questão e snapshots de enunciados, imagens e gabaritos. Os PDFs separados de prova e gabarito estão em implementação; QR code e correção por foto são etapas posteriores. As migrações `202611240001_academic_hierarchy.sql`, `202611240002_question_bank.sql`, `202611240003_question_images.sql` e `202611240004_exam_packages.sql` já foram aplicadas no Neon `production`; as tabelas iniciais vazias foram preservadas como legado.

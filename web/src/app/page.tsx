@@ -1,36 +1,32 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 
+import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth/server";
-import { signOut } from "@/app/auth/sign-out/actions";
 
 const steps = [
   {
     number: "01",
-    title: "Organize por categoria",
+    title: "Organize disciplinas e conteúdos",
     description:
-      "Crie categorias como Condicional SE, Repetição Para e Vetores.",
-    status: "Primeiro passo",
+      "Cadastre períodos letivos, disciplinas e os conteúdos de cada disciplina.",
+    status: "Concluído",
   },
   {
     number: "02",
-    title: "Monte seu banco de questões",
+    title: "Cadastre seu banco de questões",
     description:
-      "Cadastre alternativas e gabaritos separados por posição da prova.",
-    status: "Em seguida",
+      "Inclua enunciados, alternativas e gabaritos em cada tipo de questão.",
+    status: "Concluído",
   },
   {
     number: "03",
     title: "Gere e corrija os pacotes",
     description:
       "Monte versões, imprima com QR code e corrija pela foto do celular.",
-    status: "Depois",
+    status: "Próximo passo",
   },
 ];
-
-function Mark({ children }: { children: React.ReactNode }) {
-  return <span className="mark">{children}</span>;
-}
 
 export default function Home() {
   return (
@@ -45,45 +41,7 @@ async function Dashboard() {
   const user = await requireUser();
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="/" aria-label="Avalia, página inicial">
-          <span className="brand-symbol">a</span>
-          <span className="brand-name">avalia<span>.</span></span>
-        </a>
-
-        <div className="sidebar-label">ESPAÇO DO PROFESSOR</div>
-        <nav aria-label="Navegação principal">
-          <a className="nav-item active" href="/" aria-current="page">
-            <Mark>⌂</Mark> Visão geral
-          </a>
-          <span className="nav-item muted"><Mark>▦</Mark> Categorias</span>
-          <span className="nav-item muted"><Mark>▤</Mark> Questões</span>
-          <span className="nav-item muted"><Mark>▧</Mark> Pacotes de provas</span>
-          <span className="nav-item muted"><Mark>◉</Mark> Correção</span>
-        </nav>
-
-        <div className="sidebar-bottom">
-          <div className="profile-avatar">P</div>
-          <div className="profile-copy">
-            <strong>{user.name || "Professor"}</strong>
-            <span>{user.email}</span>
-          </div>
-          <form action={signOut}>
-            <button className="sign-out-button" type="submit" aria-label="Encerrar sessão">
-              <span aria-hidden="true">↪</span><span className="sign-out-label">Sair</span>
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <section className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb">Início <span>/</span> Visão geral</div>
-          <div className="topbar-note"><span className="status-dot" /> Seu espaço de avaliações</div>
-        </header>
-
-        <div className="content">
+    <AppShell user={user} active="overview" breadcrumb="Visão geral">
           <section className="welcome">
             <div className="welcome-copy">
               <div className="eyebrow"><span /> SEU ESPAÇO DE TRABALHO</div>
@@ -118,10 +76,10 @@ async function Dashboard() {
 
           <section className="steps-grid" aria-label="Etapas do sistema">
             {steps.map((step, index) => (
-              <article className={`step-card ${index === 0 ? "step-first" : ""}`} key={step.number}>
+              <article className={`step-card ${index === 2 ? "step-first" : ""}`} key={step.number}>
                 <div className="step-card-top">
                   <span className="step-number">{step.number}</span>
-                  <span className={`step-status ${index === 0 ? "current" : ""}`}>
+                  <span className={`step-status ${index === 2 ? "current" : ""}`}>
                     {step.status}
                   </span>
                 </div>
@@ -133,12 +91,12 @@ async function Dashboard() {
           </section>
 
           <section className="first-action">
-            <div className="action-icon"><Mark>▦</Mark></div>
+            <div className="action-icon"><span className="mark">▦</span></div>
             <div className="action-copy">
-              <h2>Vamos começar pelas categorias</h2>
-              <p>O próximo passo é definir uma categoria e quantas questões cada avaliação terá.</p>
+              <h2>Monte seu primeiro pacote</h2>
+              <p>Defina as questões, a quantidade de versões e o valor de cada posição da avaliação.</p>
             </div>
-            <span className="action-badge">PRÓXIMO PASSO</span>
+            <a className="action-badge" href="/pacotes">ABRIR PACOTES</a>
           </section>
 
           <footer className="footer-note">
@@ -146,8 +104,6 @@ async function Dashboard() {
             <span>Feito para preparar avaliações com clareza.</span>
             <span className="footer-version">VERSÃO INICIAL</span>
           </footer>
-        </div>
-      </section>
-    </main>
+    </AppShell>
   );
 }
