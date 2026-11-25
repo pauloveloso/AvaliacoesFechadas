@@ -23,6 +23,56 @@ function formatPoints(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+type DecodedQr = NonNullable<ReturnType<typeof jsQR>>;
+
+function scanQrWithFallbacks(imageData: ImageData, sourceCanvas: HTMLCanvasElement): DecodedQr | null {
+  const direct = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+  if (direct) return direct;
+
+  // On a full-page phone photo, zoom into overlapping regions where the answer
+  // card is printed. This gives jsQR more pixels per module without changing
+  // the coordinate plane used later to read the bubbles.
+  const width = imageData.width;
+  const height = imageData.height;
+  const cropWidth = Math.round(width * 0.58);
+  const cropHeight = Math.round(height * 0.26);
+  const outputWidth = Math.min(1800, Math.round(cropWidth * 1.8));
+  const outputHeight = Math.round(cropHeight * (outputWidth / cropWidth));
+  const cropXs = [0.02, 0.22, 0.40].map((fraction) => Math.min(width - cropWidth, Math.round(width * fraction)));
+  const cropYs = [0.08, 0.22, 0.36, 0.50, 0.64].map((fraction) => Math.min(height - cropHeight, Math.round(height * fraction)));
+  const cropCanvas = document.createElement("canvas");
+  cropCanvas.width = outputWidth;
+  cropCanvas.height = outputHeight;
+  const cropContext = cropCanvas.getContext("2d", { willReadFrequently: true });
+  if (!cropContext) return null;
+
+  for (const cropY of cropYs) {
+    for (const cropX of cropXs) {
+      cropContext.clearRect(0, 0, outputWidth, outputHeight);
+      cropContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, outputWidth, outputHeight);
+      const cropData = cropContext.getImageData(0, 0, outputWidth, outputHeight);
+      const decoded = jsQR(cropData.data, outputWidth, outputHeight, { inversionAttempts: "attemptBoth" });
+      if (!decoded) continue;
+
+      const mapPoint = (point: { x: number; y: number }) => ({
+        x: cropX + point.x * (cropWidth / outputWidth),
+        y: cropY + point.y * (cropHeight / outputHeight),
+      });
+      return {
+        ...decoded,
+        location: {
+          ...decoded.location,
+          topLeftCorner: mapPoint(decoded.location.topLeftCorner),
+          topRightCorner: mapPoint(decoded.location.topRightCorner),
+          bottomRightCorner: mapPoint(decoded.location.bottomRightCorner),
+          bottomLeftCorner: mapPoint(decoded.location.bottomLeftCorner),
+        },
+      };
+    }
+  }
+  return null;
+}
+
 export function CorrectionClient() {
   const [scanState, setScanState] = useState<ScanState>("empty");
   const [error, setError] = useState("");
@@ -75,8 +125,8 @@ export function CorrectionClient() {
       context.drawImage(image, 0, 0, width, height);
 
       const imageData = context.getImageData(0, 0, width, height);
-      const qr = jsQR(imageData.data, width, height, { inversionAttempts: "attemptBoth" });
-      if (!qr) throw new Error("Não encontrei o QR. Enquadre o cartão inteiro, aproxime a câmera e tente outra vez.");
+      const qr = scanQrWithFallbacks(imageData, canvas);
+      if (!qr) throw new Error("Não encontrei um QR legível. Fotografe o cartão de perto e com foco. Se estiver usando o PDF na tela, amplie o cartão antes de capturar; o print da página inteira em zoom reduzido deixa o QR pequeno demais.");
 
       const parsedPayload = parseCorrectionQrPayload(qr.data);
       const result = await analyzeAnswerGrid(imageData, qr, parsedPayload);
@@ -112,7 +162,7 @@ export function CorrectionClient() {
           <span className="catalog-step">1</span>
           <div>
             <h2>Fotografe o cartão de respostas</h2>
-            <p>Deixe visíveis o QR, as bolhas e as quatro marcas pretas. A foto é processada localmente e não é enviada.</p>
+            <p>Deixe visíveis o QR, as bolhas e as quatro marcas pretas. A foto é processada localmente. Para captura de tela, amplie o cartão antes de fotografar.</p>
           </div>
         </div>
 
