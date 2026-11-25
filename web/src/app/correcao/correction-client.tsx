@@ -80,6 +80,7 @@ export function CorrectionClient() {
   const [photoName, setPhotoName] = useState("");
   const [payload, setPayload] = useState<CorrectionQrPayload | null>(null);
   const [readings, setReadings] = useState<ScannedAnswer[]>([]);
+  const [alignmentWarning, setAlignmentWarning] = useState(false);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [manualOverrides, setManualOverrides] = useState<(number | null | undefined)[]>([]);
   const [studentName, setStudentName] = useState("");
@@ -103,6 +104,7 @@ export function CorrectionClient() {
     setError("");
     setPayload(null);
     setReadings([]);
+    setAlignmentWarning(false);
     setAnswers([]);
     setManualOverrides([]);
     setScanState("processing");
@@ -132,6 +134,7 @@ export function CorrectionClient() {
       const result = await analyzeAnswerGrid(imageData, qr, parsedPayload);
       setPayload(parsedPayload);
       setReadings(result.readings);
+      setAlignmentWarning(!result.markersLocated);
       setAnswers(result.readings.map((reading) => reading.selectedOption));
       setManualOverrides(result.readings.map(() => undefined));
       setScanState("complete");
@@ -201,6 +204,12 @@ export function CorrectionClient() {
             <div><span>Questões corretas</span><strong>{correctCount} <small>/ {payload.correctOptions.length}</small></strong></div>
             <div><span>Revisar</span><strong>{reviewCount}</strong></div>
           </div>
+
+          {alignmentWarning ? (
+            <p className="flash-message error correction-error" role="status">
+              Não confirme a nota automaticamente: as marcas ficaram fracas nesta imagem. Confira e ajuste cada resposta abaixo.
+            </p>
+          ) : null}
 
           <div className="correction-answer-list">
             {payload.correctOptions.map((correctOption, index) => {

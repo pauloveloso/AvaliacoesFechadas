@@ -73,6 +73,70 @@ function sampleGray(imageData: ImageData, point: Point, halfSize = 2) {
   return count ? total / count : 255;
 }
 
+function sampleRingGray(imageData: ImageData, point: Point, innerRadius: number, outerRadius: number) {
+  const centerX = Math.round(point.x);
+  const centerY = Math.round(point.y);
+  const outer = Math.max(1, Math.ceil(outerRadius));
+  const inner = Math.max(0, innerRadius);
+  let total = 0;
+  let count = 0;
+  for (let y = centerY - outer; y <= centerY + outer; y++) {
+    for (let x = centerX - outer; x <= centerX + outer; x++) {
+      if (Math.max(Math.abs(x - centerX), Math.abs(y - centerY)) <= inner) continue;
+      if (x < 0 || y < 0 || x >= imageData.width || y >= imageData.height) continue;
+      const offset = (y * imageData.width + x) * 4;
+      total += imageData.data[offset] * 0.299 + imageData.data[offset + 1] * 0.587 + imageData.data[offset + 2] * 0.114;
+      count++;
+    }
+  }
+  return count ? total / count : 255;
+}
+
+function locateDarkSquare(imageData: ImageData, expected: Point, estimatedSide: number) {
+  const centerRadius = Math.max(1, Math.round(estimatedSide * 0.22));
+  const ringInner = Math.max(centerRadius + 1, estimatedSide * 0.68);
+  const ringOuter = Math.max(ringInner + 2, estimatedSide * 1.5);
+  const searchRadius = Math.max(8, estimatedSide * 2.8);
+  const coarseStep = Math.max(2, Math.round(estimatedSide * 0.45));
+
+  const scoreAt = (point: Point) => {
+    const center = sampleGray(imageData, point, centerRadius);
+    const ring = sampleRingGray(imageData, point, ringInner, ringOuter);
+    return { center, ring, contrast: ring - center };
+  };
+
+  let bestPoint = expected;
+  let bestScore = scoreAt(expected);
+  for (let dy = -searchRadius; dy <= searchRadius; dy += coarseStep) {
+    for (let dx = -searchRadius; dx <= searchRadius; dx += coarseStep) {
+      const point = { x: expected.x + dx, y: expected.y + dy };
+      const score = scoreAt(point);
+      if (score.contrast > bestScore.contrast) {
+        bestPoint = point;
+        bestScore = score;
+      }
+    }
+  }
+
+  let refinedPoint = bestPoint;
+  for (let dy = -coarseStep; dy <= coarseStep; dy++) {
+    for (let dx = -coarseStep; dx <= coarseStep; dx++) {
+      const point = { x: bestPoint.x + dx, y: bestPoint.y + dy };
+      const score = scoreAt(point);
+      if (score.contrast > bestScore.contrast) {
+        refinedPoint = point;
+        bestScore = score;
+      }
+    }
+  }
+
+  return {
+    point: refinedPoint,
+    contrast: bestScore.contrast,
+    isMarker: bestScore.center < 155 && bestScore.contrast >= 32,
+  };
+}
+
 function median(values: number[]) {
   const ordered = [...values].sort((left, right) => left - right);
   return ordered[Math.floor(ordered.length * 0.72)] ?? 220;
@@ -111,7 +175,15 @@ export async function analyzeAnswerGrid(imageData: ImageData, qr: QRCode, payloa
   const cardHeight = Math.max(140, 58 + alternativeRowCount * 11.4);
   const qrTop = (cardHeight - 65) / 2;
   const { topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner } = qr.location;
-  const transform = perspectiveTransform(
+  const qrSourceWidth = (
+    Math.hypot(topRightCorner.x - topLeftCorner.x, topRightCorner.y - topLeftCorner.y) +
+    Math.hypot(bottomRightCorner.x - bottomLeftCorner.x, bottomRightCorner.y - bottomLeftCorner.y)
+  ) / 2;
+  const qrSourceHeight = (
+    Math.hypot(bottomLeftCorner.x - topLeftCorner.x, bottomLeftCorner.y - topLeftCorner.y) +
+    Math.hypot(bottomRightCorner.x - topRightCorner.x, bottomRightCorner.y - topRightCorner.y)
+  ) / 2;
+  const qrTransform = perspectiveTransform(
     [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner],
     [
       { x: (qrLeft * 4) + quietZone, y: (qrTop * 4) + quietZone },
@@ -120,8 +192,6 @@ export async function analyzeAnswerGrid(imageData: ImageData, qr: QRCode, payloa
       { x: (qrLeft * 4) + quietZone, y: (qrTop * 4) + symbolEnd },
     ],
   );
-  const sampleAt = (x: number, y: number, radius = 2) => sampleGray(imageData, mapToSource(transform, { x: x * 4, y: y * 4 }), radius);
-
   const tableRight = 511.28 - 14;
   const questionStart = 156;
   const markerBottom = cardHeight - 10.5;
@@ -129,10 +199,18 @@ export async function analyzeAnswerGrid(imageData: ImageData, qr: QRCode, payloa
     { x: questionStart + 5.5, y: 49.5 }, { x: tableRight - 5.5, y: 49.5 },
     { x: questionStart + 5.5, y: markerBottom }, { x: tableRight - 5.5, y: markerBottom },
   ];
-  const markerContrasts = markers.map(({ x, y }) => sampleAt(x, y, 2) - sampleAt(x, y, 6));
-  if (markerContrasts.some((contrast) => contrast < 32)) {
-    throw new Error("Não consegui localizar as quatro marcas de alinhamento. Fotografe a prova inteira, sem cortar o cartão de respostas.");
-  }
+  const markerSizeInImagePixels = 7 * qrSourceWidth / (88 * moduleCount / (moduleCount + 4));
+  const markerMatches = markers.map(({ x, y }) => locateDarkSquare(
+    imageData,
+    mapToSource(qrTransform, { x: x * 4, y: y * 4 }),
+    markerSizeInImagePixels,
+  ));
+  const markersLocated = markerMatches.every((match) => match.isMarker);
+  const markerContrasts = markerMatches.map((match) => match.contrast);
+  const transform = markersLocated
+    ? perspectiveTransform(markerMatches.map((match) => match.point), markers.map(({ x, y }) => ({ x: x * 4, y: y * 4 })))
+    : qrTransform;
+  const sampleAt = (x: number, y: number, radius = 2) => sampleGray(imageData, mapToSource(transform, { x: x * 4, y: y * 4 }), radius);
 
   const rowStart = 56;
   const rowEnd = cardHeight - 22;
@@ -143,7 +221,8 @@ export async function analyzeAnswerGrid(imageData: ImageData, qr: QRCode, payloa
       const rowY = rowStart + ((rowEnd - rowStart) * option) / (alternativeRowCount - 1);
       return sampleAt(questionX, rowY, 2);
     });
-    return decideAnswer(brightness);
+    const reading = decideAnswer(brightness);
+    return markersLocated ? reading : { ...reading, confidence: "review" as const };
   });
-  return { readings, markerContrasts };
+  return { readings, markerContrasts, markersLocated };
 }
