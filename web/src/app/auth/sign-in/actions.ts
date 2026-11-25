@@ -12,6 +12,8 @@ export async function signIn(
 ): Promise<SignInState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const requestedReturnTo = String(formData.get("returnTo") ?? "");
+  const returnTo = /^\/consulta\/[0-9a-f-]{36}$/i.test(requestedReturnTo) ? requestedReturnTo : "/";
 
   if (!email || !password) {
     return { error: "Informe seu e-mail e sua senha." };
@@ -23,5 +25,5 @@ export async function signIn(
     return { error: "Não foi possível entrar. Confira os dados e tente novamente." };
   }
 
-  redirect("/");
+  redirect(returnTo);
 }

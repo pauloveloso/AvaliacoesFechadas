@@ -1,6 +1,6 @@
 # Avalia — guia de continuidade do desenvolvimento
 
-**Atualizado em:** 24/11/2026
+**Atualizado em:** 25/11/2026
 
 **Repositório:** projeto `AvaliacoesFechadas`
 
@@ -14,7 +14,7 @@ Avalia é uma aplicação pessoal para um professor cadastrar questões fechadas
 
 As avaliações têm até 10 questões. Cada posição do pacote define um tipo de questão, uma dificuldade e um valor em pontos. O sistema monta até 30 versões, gera um PDF das provas e outro do gabarito do professor e congela snapshots do conteúdo usado. A autenticação permite o acesso somente ao e-mail configurado como proprietário.
 
-**Estado atual:** cadastros, banco de questões com imagens, montagem de pacotes, snapshots, instruções da prova e geração de PDFs estão implementados. QR individual, leitura por foto, revisão de marcações e cálculo/armazenamento dos resultados ainda não estão implementados.
+**Estado atual:** cadastros, banco de questões com imagens, montagem de pacotes, snapshots, instruções e PDFs estão implementados. O módulo inicial de correção por foto lê o QR e a grade localmente no navegador, calcula a nota e permite revisar respostas incertas; ainda não registra o resultado no banco.
 
 ## 2. Regras do produto já decididas
 
@@ -25,7 +25,7 @@ As avaliações têm até 10 questões. Cada posição do pacote define um tipo 
 - O professor escolhe a quantidade de posições (1 a 10), o tipo, a dificuldade e a pontuação de cada posição, além da quantidade de versões (1 a 30).
 - Questões podem ser reutilizadas em diferentes provas. A estrutura, a dificuldade e os pontos de cada posição são iguais entre as versões do mesmo pacote.
 - Provas geradas são snapshots: alterações futuras no banco de questões não alteram as provas e os gabaritos já gerados.
-- O QR futuro deverá identificar a prova/versão por um token opaco; não deve conter o gabarito legível.
+- Cada versão tem um token QR opaco e único. O QR impresso leva o gabarito e os pontos necessários para correção offline; ele não é um mecanismo de autenticação.
 - A leitura por foto está planejada para acontecer no navegador do celular, com processamento da imagem no cliente e revisão manual de marcações duvidosas.
 
 ## 3. Tecnologias e implantação
@@ -118,10 +118,11 @@ Imagens: até 3 arquivos JPEG, PNG ou WebP por questão, 1 MB cada. A action ver
 - `?document=provas` gera o caderno combinado das versões; `?document=gabaritos` gera o material do professor.
 - A resposta usa `Content-Disposition: attachment` (download).
 - Gerador: `src/lib/pdf/exam-package-pdf.ts`.
-- A capa/primeira página da prova segue a estrutura definida pelo professor: marca IFNMG, Campus Januária, linha, “Atividade Avaliativa de [disciplina]”, versão, nome, turma, instruções, gabarito dentro de borda e linha antes das questões.
-- As instruções básicas impressas são: “O gabarito deve ser preenchido à caneta preta ou azul. Marque apenas uma opção por questão.”
-- Nas páginas seguintes da prova, o cabeçalho tem a atividade, a versão e uma linha. Uma linha fina é desenhada no rodapé de todas as páginas.
-- O gabarito de marcação atual imprime bolhas A–E para cada posição; com até 6 questões, as opções ficam na mesma linha, e com 7–10 questões ficam em duas linhas.
+- A capa/primeira página da prova segue a estrutura definida pelo professor: marca IFNMG, Campus Januária, linha, “Atividade Avaliativa de [disciplina]”, nome, turma, instruções e cartão de respostas com QR à esquerda e grade à direita. O QR usa JSON compacto: `v` (schema 1), `g` (layout da grade 2), `t` (token), `a` (opção correta 1-based por questão), `c` (quantidade de alternativas) e `p` (pontos em centésimos). A versão não aparece impressa.
+- As instruções básicas impressas orientam preencher o cartão com caneta preta ou azul e pintar uma bolha por questão.
+- Nas páginas seguintes da prova, o cabeçalho tem a atividade e uma linha. Uma linha fina é desenhada no rodapé de todas as páginas.
+- O cartão de respostas imprime uma linha por questão e bolhas para as alternativas existentes (até A–H), com quatro marcadores pretos nos cantos da região para alinhamento da foto. As alternativas do enunciado não têm bolhas, evitando confusão com a área OMR.
+- Nas provas dos alunos, a versão não aparece impressa. As questões são diagramadas em duas colunas desde a primeira página, separadas por linha vertical; os textos principais usam fonte maior e contraste reforçado. As continuações mostram apenas “Atividade Avaliativa de [disciplina]” e linha separadora.
 - O PDF do professor lista as respostas e explicações disponíveis.
 - Para que a imagem da marca seja incluída no runtime da rota na Vercel, `next.config.ts` configura `outputFileTracingIncludes` para `/api/pacotes/[packageId]/pdf`.
 
@@ -187,21 +188,22 @@ O `npx neon@latest deploy` pode provisionar/atualizar os recursos declarados e s
 
 ## 8. Próximas etapas recomendadas
 
-### Prioridade 1 — QR individual por versão
+### Módulo inicial de correção por foto
 
-- Adicionar identificador/token opaco a `exam_versions` ou criar tabela própria de tokens.
-- Gerar e imprimir o QR no caderno do aluno. O QR deve identificar a versão sem revelar o gabarito.
-- Definir como a consulta autenticada do professor resolve o token e recupera o snapshot correto.
+- Página `/correcao`, protegida pelo login do professor e acessível em celular.
+- Captura pela câmera traseira ou escolha da foto; processamento no navegador, sem enviar a imagem.
+- O QR informa token, gabarito, alternativas, pontuação e versão do layout OMR. QR de PDFs antigos sem `g: 2` precisa ser gerado novamente.
+- Os quatro cantos do QR orientam a correção de perspectiva; a leitura estima as respostas por contraste e pede revisão em marcações incertas ou múltiplas.
+- A página mostra respostas, gabarito, acertos e pontuação. Ainda não persiste resultados nem autentica a identidade do aluno.
+- Um service worker tenta manter a página e os recursos estáticos carregados para uso offline após acesso autenticado com rede. Validar em celular/navegador alvo antes de depender do modo offline.
 
-### Prioridade 2 — correção por foto
+### Próxima etapa — registro dos resultados
 
-- Criar rota/tela de correção acessível no celular e captura/seleção de foto.
-- Localizar QR e grade, corrigir perspectiva/rotação, detectar círculos preenchidos e produzir confiança por resposta.
-- Mostrar respostas corretas, incorretas, em branco, duplas/ambíguas, pontos e nota calculada com os pontos congelados por questão.
-- Pedir confirmação do professor para marcações com baixa confiança; persistir submissão e revisão sem sobrescrever o gabarito.
-- Avaliar OpenCV.js e biblioteca QR no navegador. Não enviar fotos para terceiros sem decisão explícita; o plano original é processamento local.
+- Calibrar a leitura com fotos reais: diferentes celulares, iluminação, inclinação e preenchimentos feitos a caneta.
+- Persistir nome, token da versão, respostas lidas/ajustadas, nota, data e identificação do professor; evitar armazenar a foto por padrão.
+- Definir uma fila local para guardar correções offline e sincronizar quando a rede voltar, incluindo prevenção de duplicidade pelo token e submissão.
 
-### Prioridade 3 — grade coerente com tipos
+### Depois — grade coerente com tipos
 
 O formulário de tipos permite 2–8 alternativas, mas a grade do cabeçalho do aluno está fixa em A–E. Antes de usar um tipo com outro número de alternativas, alterar o snapshot do pacote para carregar `alternatives_count` por posição e desenhar as opções correspondentes. Definir se a leitura futura aceitará número variável de alternativas ou se a regra de produto será padronizar todas em cinco.
 
@@ -230,4 +232,7 @@ O formulário de tipos permite 2–8 alternativas, mas a grade do cabeçalho do 
 - `npm run build` passou após a implementação do cabeçalho, instruções, rodapés e inclusão da logomarca no tracing.
 - PDFs sintéticos de 4 e 10 questões foram renderizados e inspecionados; foram conferidos a primeira página, a continuação e o rodapé.
 - A migração de instruções foi aplicada e consultada no Neon `production`.
-- Ainda não há testes automatizados nem correção por foto/QR para validar de ponta a ponta.
+- `npm run build` passou após a implementação do cartão OMR, do payload QR offline schema v1 e do reforço visual das colunas e textos.
+- A migração `202611250006_exam_version_qr_tokens.sql` foi testada em branch Neon temporária e aplicada em `production`; os 22 registros existentes têm tokens não nulos e únicos.
+- A diagramação do cartão foi renderizada e inspecionada com uma amostra de 10 questões em duas páginas; ainda não foi validada com fotos de celular nem com leitura automática.
+- Ainda não há testes automatizados.

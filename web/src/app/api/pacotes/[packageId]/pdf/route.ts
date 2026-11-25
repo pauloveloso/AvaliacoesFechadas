@@ -5,7 +5,7 @@ import { createExamPackagePdf, type ExamPackageSnapshot, type ExamQuestionSnapsh
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type PackageRow = Omit<ExamPackageSnapshot, "versions">;
-type VersionRow = { id: string; version_number: number; version_label: string };
+type VersionRow = { id: string; version_number: number; version_label: string; qr_token: string };
 type QuestionRow = ExamQuestionSnapshot & { version_id: string };
 
 export async function GET(
@@ -36,7 +36,7 @@ export async function GET(
   if (!packageRow) return new Response("Pacote não encontrado.", { status: 404 });
 
   const versionsResult = await pool.query<VersionRow>(
-    `select id, version_number, version_label
+    `select id, version_number, version_label, qr_token
      from public.exam_versions where package_id = $1 order by version_number`,
     [packageId],
   );
@@ -73,6 +73,7 @@ export async function GET(
     versions: versionsResult.rows.map((version) => ({
       version_number: version.version_number,
       version_label: version.version_label,
+      qr_token: version.qr_token,
       questions: questionsByVersion.get(version.id) ?? [],
     })),
   };

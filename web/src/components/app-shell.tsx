@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { signOut } from "@/app/auth/sign-out/actions";
 
 type AppUser = { name: string | null; email: string };
-type AppSection = "overview" | "cadastros" | "questions" | "packages";
+type AppSection = "overview" | "cadastros" | "questions" | "packages" | "correction";
 
 function Mark({ children }: { children: ReactNode }) {
   return <span className="mark">{children}</span>;
@@ -58,7 +58,9 @@ export function AppShell({
           >
             <Mark>▧</Mark> Pacotes de provas
           </a>
-          <span className="nav-item muted"><Mark>◉</Mark> Correção</span>
+          <a className={`nav-item ${active === "correction" ? "active" : "muted"}`} href="/correcao" aria-current={active === "correction" ? "page" : undefined}>
+            <Mark>◉</Mark> Correção
+          </a>
         </nav>
 
         <div className="sidebar-bottom">

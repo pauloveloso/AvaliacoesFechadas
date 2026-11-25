@@ -4,11 +4,12 @@ import { useActionState } from "react";
 
 import { signIn } from "./actions";
 
-export function SignInForm() {
+export function SignInForm({ returnTo = "/" }: { returnTo?: string }) {
   const [state, formAction, pending] = useActionState(signIn, null);
 
   return (
     <form action={formAction} className="sign-in-form">
+      <input type="hidden" name="returnTo" value={returnTo} />
       <label htmlFor="email">E-mail</label>
       <input
         id="email"
