@@ -1,10 +1,19 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth/server";
 import { CorrectionClient } from "./correction-client";
 
-export default async function CorrectionPage() {
+export default function CorrectionPage() {
+  return (
+    <Suspense fallback={<main className="app-shell">Carregando correção…</main>}>
+      <CorrectionContent />
+    </Suspense>
+  );
+}
+
+async function CorrectionContent() {
   await connection();
   const user = await requireUser();
 
