@@ -54,6 +54,7 @@ export async function createExamPackage(formData: FormData) {
   const disciplineId = getField(formData, "disciplineId");
   const contentId = getField(formData, "contentId");
   const title = getField(formData, "title").slice(0, 120);
+  const campusName = getField(formData, "campusName").slice(0, 180);
   const instructions = getField(formData, "instructions").slice(0, 500);
   const versionCount = Number(getField(formData, "versionCount"));
   const questionCount = Number(getField(formData, "questionCount"));
@@ -62,9 +63,9 @@ export async function createExamPackage(formData: FormData) {
   if (!uuidPattern.test(periodId) || !uuidPattern.test(disciplineId) || !uuidPattern.test(contentId)) {
     redirectWithError(pageParams, "Selecione período, disciplina e conteúdo válidos.");
   }
-  if (!title || !Number.isInteger(versionCount) || versionCount < 1 || versionCount > 30 ||
+  if (!title || !campusName || !Number.isInteger(versionCount) || versionCount < 1 || versionCount > 30 ||
       !Number.isInteger(questionCount) || questionCount < 1 || questionCount > 10) {
-    redirectWithError(pageParams, "Informe um nome, de 1 a 30 versões e de 1 a 10 questões.");
+    redirectWithError(pageParams, "Informe título e texto do campus, de 1 a 30 versões e de 1 a 10 questões.");
   }
 
   const slots: Slot[] = [];
@@ -147,10 +148,10 @@ export async function createExamPackage(formData: FormData) {
     const totalPoints = slots.reduce((sum, slot) => sum + Number(slot.points), 0).toFixed(2);
     const packageResult = await client.query<{ id: string }>(
       `insert into public.exam_packages
-        (term_id, discipline_id, content_id, title, version_count, question_count, total_points, instructions)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
+        (term_id, discipline_id, content_id, title, version_count, question_count, total_points, instructions, campus_name)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        returning id`,
-      [periodId, disciplineId, contentId, title, versionCount, questionCount, totalPoints, instructions],
+      [periodId, disciplineId, contentId, title, versionCount, questionCount, totalPoints, instructions, campusName],
     );
     packageId = packageResult.rows[0].id;
 

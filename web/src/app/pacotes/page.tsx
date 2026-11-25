@@ -182,6 +182,11 @@ async function PackagesContent({ searchParams }: { searchParams: SearchParams })
               </label>
             </div>
 
+            <label className="package-campus-field">Texto do campus no cabeçalho
+              <input name="campusName" type="text" maxLength={180} defaultValue="Campus Januária" required />
+              <span>O PDF ajusta o tamanho da fonte e quebra o texto para caber ao lado da logomarca.</span>
+            </label>
+
             <label className="package-instructions-field">Instrução específica (opcional)
               <textarea name="instructions" maxLength={500} rows={2} placeholder="Será impressa junto às instruções básicas da avaliação." />
               <span>Máximo de 500 caracteres. As instruções básicas de preenchimento do gabarito já serão incluídas.</span>

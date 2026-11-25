@@ -118,7 +118,8 @@ Imagens: até 3 arquivos JPEG, PNG ou WebP por questão, 1 MB cada. A action ver
 - `?document=provas` gera o caderno combinado das versões; `?document=gabaritos` gera o material do professor.
 - A resposta usa `Content-Disposition: attachment` (download).
 - Gerador: `src/lib/pdf/exam-package-pdf.ts`.
-- A capa/primeira página da prova segue a estrutura definida pelo professor: marca IFNMG, Campus Januária, linha, “Atividade Avaliativa de [disciplina]”, nome, turma, instruções e cartão de respostas com QR à esquerda e grade à direita. O QR usa JSON compacto: `v` (schema 1), `g` (layout da grade 2), `t` (token), `a` (opção correta 1-based por questão), `c` (quantidade de alternativas) e `p` (pontos em centésimos). A versão não aparece impressa.
+- A capa/primeira página da prova segue a estrutura definida pelo professor: marca IFNMG, nome de campus definido na geração do pacote, linha, “Atividade Avaliativa de [disciplina]”, nome, turma, instruções e cartão de respostas com QR à esquerda e grade à direita. O nome do campus reduz a fonte e quebra em linhas para caber no espaço ao lado da marca.
+- O QR usa JSON compacto: `v` (schema 1), `g` (layout da grade 2), `t` (token), `a` (opção correta 1-based por questão), `c` (quantidade de alternativas) e `p` (pontos em centésimos). A versão não aparece impressa.
 - As instruções básicas impressas orientam preencher o cartão com caneta preta ou azul e pintar uma bolha por questão.
 - Nas páginas seguintes da prova, o cabeçalho tem a atividade e uma linha. Uma linha fina é desenhada no rodapé de todas as páginas.
 - O cartão de respostas imprime uma linha por questão e bolhas para as alternativas existentes (até A–H), com quatro marcadores pretos nos cantos da região para alinhamento da foto. As alternativas do enunciado não têm bolhas, evitando confusão com a área OMR.
@@ -140,7 +141,7 @@ O schema está em `web/neon/migrations/`:
 | `questions` | Enunciado JSON, explicação, dificuldade e estado ativo |
 | `question_options` | Alternativas JSON ordenadas e indicador da correta |
 | `question_images` | Caminho privado no Blob, MIME, tamanho, texto alternativo e ordem |
-| `exam_packages` | Contexto do pacote, título, contagens, total e instrução específica |
+| `exam_packages` | Contexto do pacote, título, contagens, total, instrução específica e nome do campus |
 | `exam_package_slots` | Tipo, dificuldade e pontos de cada posição |
 | `exam_versions` | Versões (A, B, C...) dentro do pacote |
 | `exam_version_questions` | Snapshot imutável de enunciado, alternativas, resposta, explicação, imagens e pontos |
@@ -155,8 +156,10 @@ Há tabelas do esquema inicial mantidas como legado. `202611240002_question_bank
 4. `202611240003_question_images.sql` — metadados de imagens.
 5. `202611240004_exam_packages.sql` — pacote, posições, versões e snapshots.
 6. `202611240005_exam_package_instructions.sql` — coluna `instructions` (`text`, até 500 caracteres, default vazio).
+7. `202611250006_exam_version_qr_tokens.sql` — token QR opaco por versão.
+8. `202611250007_exam_package_campus_name.sql` — texto do campus, default `Campus Januária`, com limite de 180 caracteres.
 
-As migrações 001–004 foram aplicadas no Neon `production` em etapas anteriores. A migração 005 foi aplicada em 24/11/2026; a verificação confirmou que os três pacotes existentes foram preservados e receberam `instructions = ''`. Não há runner de migração configurado nos scripts npm. Para novas alterações, criar SQL versionado, testar em branch temporário do Neon, aplicar à produção usando conexão direta (`DATABASE_URL_UNPOOLED`) e verificar o schema.
+As migrações 001–004 foram aplicadas no Neon `production` em etapas anteriores. A migração 005 foi aplicada em 24/11/2026; a verificação confirmou que os três pacotes existentes foram preservados e receberam `instructions = ''`. A migração 006 foi testada e aplicada em 25/11/2026. A migração 007 foi testada em branch temporário e aplicada em `production`; os quatro pacotes existentes receberam `Campus Januária`. Não há runner de migração configurado nos scripts npm. Para novas alterações, criar SQL versionado, testar em branch temporário do Neon, aplicar à produção usando conexão direta (`DATABASE_URL_UNPOOLED`) e verificar o schema.
 
 ## 7. Configuração e comandos
 
@@ -208,8 +211,6 @@ O `npx neon@latest deploy` pode provisionar/atualizar os recursos declarados e s
 O formulário de tipos permite 2–8 alternativas, mas a grade do cabeçalho do aluno está fixa em A–E. Antes de usar um tipo com outro número de alternativas, alterar o snapshot do pacote para carregar `alternatives_count` por posição e desenhar as opções correspondentes. Definir se a leitura futura aceitará número variável de alternativas ou se a regra de produto será padronizar todas em cinco.
 
 ### Outras melhorias
-
-- Permitir configurar nome do instituto/campus e talvez logomarca, em vez de deixar `Campus Januária` fixo no gerador.
 - Revisar o layout A4 usando questões reais com enunciados longos, imagens e os limites máximos, verificando se a paginação mantém leitura confortável.
 - Considerar embaralhamento aleatório de questões/alternativas com semente salva para auditoria, se o professor quiser aumentar a variação. A ordem precisa continuar alinhada ao gabarito congelado.
 - Adicionar prévia antes de finalizar o pacote e edição de instruções sem reescrever snapshots já emitidos (por padrão, criar novo pacote para novas instruções).
@@ -234,5 +235,7 @@ O formulário de tipos permite 2–8 alternativas, mas a grade do cabeçalho do 
 - A migração de instruções foi aplicada e consultada no Neon `production`.
 - `npm run build` passou após a implementação do cartão OMR, do payload QR offline schema v1 e do reforço visual das colunas e textos.
 - A migração `202611250006_exam_version_qr_tokens.sql` foi testada em branch Neon temporária e aplicada em `production`; os 22 registros existentes têm tokens não nulos e únicos.
+- A migração `202611250007_exam_package_campus_name.sql` foi testada em branch temporário e aplicada em `production`; os quatro pacotes existentes preservaram seus dados e receberam `Campus Januária`.
+- O nome do campus pode ser definido ao gerar um pacote. O cabeçalho centraliza o texto, reduz a fonte e quebra linhas para acomodar nomes longos.
 - A diagramação do cartão foi renderizada e inspecionada com uma amostra de 10 questões em duas páginas; ainda não foi validada com fotos de celular nem com leitura automática.
 - Ainda não há testes automatizados.

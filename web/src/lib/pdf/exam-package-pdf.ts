@@ -23,6 +23,7 @@ export type ExamPackageSnapshot = {
   period: string;
   discipline: string;
   content: string;
+  campus_name: string;
   question_count: number;
   total_points: string | number;
   instructions: string;
@@ -77,6 +78,25 @@ function makeDocument(title: string) {
 
 function formatPoints(points: string | number) {
   return Number(points).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function drawCampusName(document: PDFKit.PDFDocument, value: string, x: number, y: number, width: number, maxHeight: number) {
+  const text = value.trim() || "Campus Januária";
+  let fontSize = 20;
+  let textHeight = 0;
+  document.font("Helvetica-Bold");
+  for (; fontSize >= 8; fontSize -= 0.5) {
+    document.fontSize(fontSize);
+    textHeight = document.heightOfString(text, { width, align: "center", lineGap: 1.2 });
+    if (textHeight <= maxHeight) break;
+  }
+  document.font("Helvetica-Bold").fontSize(Math.max(8, fontSize));
+  textHeight = document.heightOfString(text, { width, align: "center", lineGap: 1.2 });
+  document.fillColor("#172c26").text(text, x, y + Math.max(0, (maxHeight - textHeight) / 2), {
+    width,
+    align: "center",
+    lineGap: 1.2,
+  });
 }
 
 function drawPageFooter(document: PDFKit.PDFDocument) {
@@ -185,12 +205,14 @@ function versionHeader(document: PDFKit.PDFDocument, data: ExamPackageSnapshot, 
   const logoHeight = logoWidth * 335 / 993;
   const logoY = pageMargin;
   document.image(logo, pageMargin, logoY, { fit: [logoWidth, logoHeight] });
-  document.fillColor("#172c26").font("Helvetica-Bold").fontSize(18)
-    .text("Campus Januária", pageMargin + logoWidth + 12, logoY + logoHeight / 2 - 10, {
-      width: width - logoWidth - 24,
-      align: "center",
-      lineBreak: false,
-    });
+  drawCampusName(
+    document,
+    data.campus_name,
+    pageMargin + logoWidth + 12,
+    logoY + 3,
+    width - logoWidth - 24,
+    logoHeight - 6,
+  );
 
   const institutionRuleY = logoY + logoHeight + 9;
   document.moveTo(pageMargin, institutionRuleY).lineTo(pageMargin + width, institutionRuleY)

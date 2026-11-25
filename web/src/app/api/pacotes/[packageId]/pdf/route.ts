@@ -23,7 +23,7 @@ export async function GET(
 
   const pool = getDatabase();
   const packageResult = await pool.query<PackageRow>(
-    `select p.title, p.question_count, p.total_points, p.instructions,
+    `select p.title, p.question_count, p.total_points, p.instructions, p.campus_name,
             t.name as period, d.name as discipline, c.name as content
      from public.exam_packages p
      join public.academic_terms t on t.id = p.term_id

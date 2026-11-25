@@ -299,6 +299,9 @@ a.catalog-item:hover { border-color: #b8d3c0; background: #fbfefb; }
 .package-context-form button:hover, .package-builder-footer button:hover { background: var(--green-dark); }
 .package-builder-form { display: grid; gap: 19px; }
 .package-builder-top-fields { display: grid; grid-template-columns: minmax(0, 1fr) 190px 190px; gap: 13px; }
+.package-campus-field { display: grid; gap: 7px; color: #40544a; font-size: 14px; font-weight: 700; }
+.package-campus-field input { width: 100%; }
+.package-campus-field span { color: #72817a; font-size: 12px; font-weight: 400; }
 .package-instructions-field { display: grid; gap: 7px; color: #40544a; font-size: 14px; font-weight: 700; }
 .package-instructions-field textarea { width: 100%; min-height: 66px; padding: 10px 11px; border: 1px solid #dfe8e2; border-radius: 8px; color: var(--ink); background: #fff; font: 14px/1.45 var(--font-body); resize: vertical; }
 .package-instructions-field textarea:focus { outline: 3px solid #68a47720; border-color: #7eae8b; }
