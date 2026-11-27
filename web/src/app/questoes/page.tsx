@@ -5,6 +5,8 @@ import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth/server";
 import { getDatabase } from "@/lib/db";
 import { saveQuestion } from "./actions";
+import { QuestionContextSelector } from "./question-context-filter";
+import type { QuestionContextOption } from "./question-context-filter";
 
 type SearchParams = Promise<{
   periodId?: string;
@@ -85,11 +87,24 @@ async function QuestionsContent({
   const pool = getDatabase();
   const requestedPage = safePage(params.page);
 
+  const contextOptionsResult = await pool.query<QuestionContextOption>(
+    `select t.id as "periodId", t.name as "periodName",
+            d.id as "disciplineId", d.name as "disciplineName",
+            c.id as "contentId", c.name as "contentName",
+            qt.id as "questionTypeId", qt.name as "questionTypeName"
+     from public.academic_terms t
+     join public.term_disciplines td on td.term_id = t.id
+     join public.disciplines d on d.id = td.discipline_id
+     join public.contents c on c.discipline_id = d.id
+     join public.question_types qt on qt.content_id = c.id
+     order by t.created_at desc, t.name desc, d.name, c.name, qt.name`,
+  );
+
   const termsResult = await pool.query<AcademicTerm>(
     "select id, name from public.academic_terms order by created_at desc, name desc",
   );
   const terms = termsResult.rows;
-  const term = terms.find((item) => item.id === params.periodId) ?? terms[0];
+  const term = terms.find((item) => item.id === params.periodId);
 
   let disciplines: Discipline[] = [];
   if (term) {
@@ -103,7 +118,7 @@ async function QuestionsContent({
     );
     disciplines = result.rows;
   }
-  const discipline = disciplines.find((item) => item.id === params.disciplineId) ?? disciplines[0];
+  const discipline = disciplines.find((item) => item.id === params.disciplineId);
 
   let contents: Content[] = [];
   if (discipline) {
@@ -113,7 +128,7 @@ async function QuestionsContent({
     );
     contents = result.rows;
   }
-  const content = contents.find((item) => item.id === params.contentId) ?? contents[0];
+  const content = contents.find((item) => item.id === params.contentId);
 
   let questionTypes: QuestionType[] = [];
   if (content) {
@@ -126,7 +141,7 @@ async function QuestionsContent({
     );
     questionTypes = result.rows;
   }
-  const questionType = questionTypes.find((item) => item.id === params.questionTypeId) ?? questionTypes[0];
+  const questionType = questionTypes.find((item) => item.id === params.questionTypeId);
 
   let totalQuestions = 0;
   let questions: Question[] = [];
@@ -185,7 +200,7 @@ async function QuestionsContent({
   const pagesCount = Math.max(1, Math.ceil(totalQuestions / pageSize));
   const editingQuestion = questions.find((question) => question.id === params.editQuestionId);
   const selection = term && discipline && content && questionType
-    ? { periodId: term.id, disciplineId: discipline.id, contentId: content.id, questionTypeId: questionType.id }
+    ? { periodId: term.id, disciplineId: discipline.id, contentId: content.id, questionTypeId: questionType.id, term, discipline, content, questionType }
     : null;
 
   return (
@@ -199,30 +214,33 @@ async function QuestionsContent({
       {params.notice ? <p className="flash-message" role="status">{params.notice}</p> : null}
       {params.error ? <p className="flash-message error" role="alert">{params.error}</p> : null}
 
+      <QuestionContextSelector
+        key={[params.periodId, params.disciplineId, params.contentId, params.questionTypeId].join(":")}
+        options={contextOptionsResult.rows}
+        selected={{
+          periodId: params.periodId,
+          disciplineId: params.disciplineId,
+          contentId: params.contentId,
+          questionTypeId: params.questionTypeId,
+        }}
+      />
+
       {selection ? (
         <>
-          <section className="question-context">
-            <div className="question-context-item"><span>Período</span><strong>{term.name}</strong></div>
-            <div className="question-context-item"><span>Disciplina</span><strong>{discipline.name}</strong></div>
-            <div className="question-context-item"><span>Conteúdo</span><strong>{content.name}</strong></div>
-            <div className="question-context-item"><span>Tipo de questão</span><strong>{questionType.name}</strong></div>
-            <a href={`/categorias?periodId=${term.id}&disciplineId=${discipline.id}&contentId=${content.id}`}>Trocar tipo</a>
-          </section>
-
           <section className="catalog-section question-editor-section">
             <div className="catalog-section-heading">
               <span className="catalog-step">+</span>
               <div>
                 <h2>{editingQuestion ? "Editar questão" : "Nova questão"}</h2>
-                <p>{questionType.alternatives_count} alternativas · marque uma como gabarito. Quebras de linha e indentação são preservadas.</p>
+                <p>{selection.questionType.alternatives_count} alternativas · marque uma como gabarito. Quebras de linha e indentação são preservadas.</p>
               </div>
             </div>
 
             <form action={saveQuestion} className="question-editor">
-              <input type="hidden" name="periodId" value={term.id} />
-              <input type="hidden" name="disciplineId" value={discipline.id} />
-              <input type="hidden" name="contentId" value={content.id} />
-              <input type="hidden" name="questionTypeId" value={questionType.id} />
+              <input type="hidden" name="periodId" value={selection.term.id} />
+              <input type="hidden" name="disciplineId" value={selection.discipline.id} />
+              <input type="hidden" name="contentId" value={selection.content.id} />
+              <input type="hidden" name="questionTypeId" value={selection.questionType.id} />
               <input type="hidden" name="questionId" value={editingQuestion?.id ?? ""} />
               <input type="hidden" name="page" value={String(currentPage)} />
 
@@ -274,7 +292,7 @@ async function QuestionsContent({
               </div>
 
               <div className="alternative-editor-grid">
-                {Array.from({ length: questionType.alternatives_count }, (_, index) => {
+                {Array.from({ length: selection.questionType.alternatives_count }, (_, index) => {
                   const number = index + 1;
                   return (
                     <div className="alternative-editor" key={number}>
@@ -403,9 +421,11 @@ async function QuestionsContent({
         </>
       ) : (
         <section className="empty-state">
-          <h2>Selecione um tipo de questão</h2>
-          <p>Escolha um tipo já cadastrado para adicionar questões ao banco.</p>
-          <a className="auth-link-button" href="/categorias">Abrir cadastros</a>
+          <h2>{contextOptionsResult.rows.length ? "Selecione um tipo de questão" : "Nenhum tipo de questão cadastrado"}</h2>
+          <p>{contextOptionsResult.rows.length
+            ? "Selecione período, disciplina, conteúdo e tipo de questão. As opções serão liberadas em sequência."
+            : "Cadastre períodos, disciplinas, conteúdos e tipos de questão para começar."}</p>
+          {!contextOptionsResult.rows.length ? <a className="auth-link-button" href="/categorias">Abrir cadastros</a> : null}
         </section>
       )}
     </AppShell>
